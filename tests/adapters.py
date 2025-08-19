@@ -16,6 +16,7 @@ from cs336_basics.RMSNorm import RMSNorm
 from cs336_basics.SwiGLU import SwiGLU
 from cs336_basics.RoPE import RoPE
 from cs336_basics.Attention import softmax, scaled_dot_product_attention, multihead_self_attention
+from cs336_basics.transformer import transformer_block
 
 
 def run_linear(
@@ -157,7 +158,7 @@ def run_multihead_self_attention(
     model.v_proj.weights.data = v_proj_weight
     model.o_proj.weights.data = o_proj_weight
 
-    return model(in_features,in_features,in_features)
+    return model(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -203,7 +204,7 @@ def run_multihead_self_attention_with_rope(
     model.v_proj.weights.data = v_proj_weight
     model.o_proj.weights.data = o_proj_weight
 
-    return model(in_features,in_features,in_features,token_positions)
+    return model(in_features,token_positions)
 
 
 def run_rope(
@@ -299,7 +300,21 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    model = transformer_block(d_model, num_heads, d_ff, theta, max_seq_len)
+    model.attn.q_proj.weights.data = weights["attn.q_proj.weight"]
+    model.attn.k_proj.weights.data = weights["attn.k_proj.weight"]
+    model.attn.v_proj.weights.data = weights["attn.v_proj.weight"]
+    model.attn.o_proj.weights.data = weights["attn.output_proj.weight"]
+    model.ln1.weights.data = weights['ln1.weight']
+    model.ln2.weights.data = weights['ln2.weight']
+    model.ffn.W1.data = weights['ffn.w1.weight']
+    model.ffn.W2.data = weights['ffn.w2.weight']
+    model.ffn.W3.data = weights['ffn.w3.weight']
+
+
+    batch_size, seq_len, _ = in_features.shape
+    token_positions = torch.arange(seq_len, device=in_features.device).unsqueeze(0).expand(batch_size, -1)
+    return model(in_features, token_positions)
 
 
 def run_transformer_lm(
@@ -326,7 +341,7 @@ def run_transformer_lm(
         num_heads (int): Number of heads to use in multi-headed attention. `d_model` must be
             evenly divisible by `num_heads`.
         d_ff (int): Dimensionality of the feed-forward inner layer (section 3.3).
-        rope_theta (float): The RoPE $\Theta$ parameter.
+        rope_theta (float): The RoPE Theta parameter.
         weights (dict[str, Tensor]): 
             State dict of our reference implementation. {num_layers} refers to an
             integer between `0` and `num_layers - 1` (the layer index).
