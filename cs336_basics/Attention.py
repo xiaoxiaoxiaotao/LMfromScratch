@@ -50,13 +50,13 @@ class multihead_self_attention(nn.Module):
         if (theta is not None) and (max_seq_len is not None):
             self.rope = RoPE(theta,self.head_dim, max_seq_len)
     
-    def forward(self,query,key,value, token_positions = None, causal = True):
+    def forward(self,x, token_positions = None, causal = True):
         # x: (*batch_shape, sequence_length d_in)
-        *batch_shape, seq_len, _ = query.shape
+        *batch_shape, seq_len, _ = x.shape
 
-        Q = self.q_proj(query).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        K = self.k_proj(key).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        V = self.v_proj(value).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        Q = self.q_proj(x).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        K = self.k_proj(x).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        V = self.v_proj(x).view(*batch_shape, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         mask = None
         if causal:
