@@ -71,6 +71,8 @@ def find_chunk_boundaries(
 
 def split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
     """使用特殊标记分割文本，保留特殊标记作为独立片段"""
+    # 过滤空字符串特殊标记
+    special_tokens = [tok for tok in special_tokens if tok]
     if not special_tokens:
         return [text]
     
@@ -80,21 +82,22 @@ def split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
     segments = re.split(f"({pattern})", text)
     return [seg for seg in segments if seg]  # 过滤空字符串
 
-def pretoken_each_chunk(chunk: str, special_tokens: list[str]) -> list[str]:
-    """正确处理特殊标记：分割后分别预处理"""
+def pretoken_each_chunk(chunk: str, special_tokens: list[str]) -> Counter:
+    """正确处理特殊标记：分割后分别预处理，返回token频率计数器"""
     segments = split_on_special_tokens(chunk, special_tokens)
     PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    pretokens = []
+    token_counter = Counter()
     
     for segment in segments:
         if segment in special_tokens:
             # 特殊标记直接作为独立token
-            pretokens.append(segment)
+            token_counter[segment] += 1
         else:
             # 普通文本使用正则预处理
-            pretokens.extend(re.findall(PATTERN, segment))
+            tokens = re.findall(PATTERN, segment)
+            token_counter.update(tokens)
     
-    return pretokens
+    return token_counter
 
 def get_stats(bytes_with_freq: list[tuple[list[bytes], int]]) -> defaultdict:
     """获取所有字节对的频率统计"""
@@ -130,38 +133,34 @@ def token_to_byte_sequence(token: bytes) -> list[bytes]:
 
 def determine_optimal_chunking(file_path: str, special_token: bytes, num_workers: int) -> tuple[int, int]:
     """
-    确定最优的分块数量和工作进程数
-    
-    Args:
-        file_path: 输入文件路径
-        special_token: 特殊标记字节
-        num_workers: 指定的工作进程数（None表示使用CPU核心数）
-    
-    Returns:
-        (num_chunks, actual_num_workers): 分块数量和实际使用的工作进程数
+    确定最优的分块数量和工作进程数，考虑内存限制
     """
-    # 获取CPU核心数
+    # 获取系统资源
     cpu_count = multiprocessing.cpu_count()
-    
-    # 确定工作进程数
-    if num_workers is None:
-        # 默认使用75%的CPU核心（保留一些给系统）
-        actual_num_workers = max(1, min(cpu_count - 1, cpu_count * 3 // 4))
-    else:
-        actual_num_workers = min(num_workers, cpu_count)
-    
-    # 获取文件大小
+    total_memory = psutil.virtual_memory().total
     file_size = os.path.getsize(file_path)
     
-    # 计算基于文件大小的合理分块数
-    # 目标：每个分块约10-50MB，但至少有actual_num_workers*2个分块
-    target_chunk_size = 10 * 1024 * 1024  # 10MB
-    min_chunks = max(actual_num_workers * 2, 4)
-    max_chunks = file_size // (1 * 1024 * 1024)
+    # 计算安全内存阈值 (保留50%内存给其他进程)
+    safe_memory = total_memory * 0.5
+    # 估计每个chunk的内存需求 (10MB per chunk for safety)
+    estimated_chunk_memory = 10 * 1024 * 1024
     
-    num_chunks = max(min_chunks, min(max_chunks, file_size // target_chunk_size))
+    # 计算基于内存的合理分块数
+    memory_based_chunks = max(4, int(safe_memory // estimated_chunk_memory))
     
-    print(f"System info: {cpu_count} CPU cores, {psutil.virtual_memory().total / (1024**3):.1f} GB RAM")
+    # 计算基于文件大小的分块数
+    size_based_chunks = max(4, file_size // (5 * 1024 * 1024))  # 目标5MB/chunk
+    
+    # 综合考虑内存和文件大小
+    num_chunks = min(memory_based_chunks, size_based_chunks, 1000)  # 限制最大分块数
+    
+    # 确定工作进程数 (不超过CPU核心数，且不超过分块数)
+    if num_workers is None:
+        actual_num_workers = max(1, min(cpu_count - 1, num_chunks))
+    else:
+        actual_num_workers = min(num_workers, cpu_count, num_chunks)
+    
+    print(f"System info: {cpu_count} CPU cores, {total_memory / (1024**3):.1f} GB RAM")
     print(f"File size: {file_size / (1024**2):.1f} MB")
     print(f"Using {actual_num_workers} worker processes and {num_chunks} data chunks")
     
@@ -174,20 +173,23 @@ def train_bpe(
     vocab_size: int = 30000,
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
 
+    # 过滤空字符串特殊标记
+    filtered_special_tokens = [tok for tok in special_tokens if tok]
+    
     # 确定最优的分块数量和工作进程数
-    doc_boundary_token = special_tokens[0].encode("utf-8") if special_tokens else b"\n"
+    doc_boundary_token = filtered_special_tokens[0].encode("utf-8") if filtered_special_tokens else b"\n"
     num_chunks, actual_num_workers = determine_optimal_chunking(
         input_path, doc_boundary_token, num_workers
     )
     
     # 初始化词汇表，包含特殊标记
     vocab = {}
-    for i, token in enumerate(special_tokens):
+    for i, token in enumerate(filtered_special_tokens):
         vocab[i] = token.encode("utf-8")
 
     # 添加256个基础字节
     for x in range(256):
-        vocab[len(special_tokens) + x] = bytes([x])
+        vocab[len(filtered_special_tokens) + x] = bytes([x])
 
     # 读取并分块文件
     with open(input_path, "rb") as file:
@@ -203,29 +205,26 @@ def train_bpe(
 
     print(f"Actual number of chunks after boundary adjustment: {len(chunks)}")
     
-    # 并行预处理分块 - 关键修改：工作进程数与分块数分离
+    # 并行预处理分块 - 返回Counter而非原始token列表
     with multiprocessing.Pool(processes=actual_num_workers) as pool:
-        # 创建带固定 special_tokens 的 partial 函数
-        func = partial(pretoken_each_chunk, special_tokens=special_tokens)
-        # 并行处理分块 + 进度条
+        func = partial(pretoken_each_chunk, special_tokens=filtered_special_tokens)
         results = list(tqdm(pool.imap(func, chunks), total=len(chunks), desc="Pre-tokenizing"))
     
-    # 合并结果
-    pretokens = [token for sublist in results for token in sublist]
-    pretokens_count = Counter(pretokens)
-
+    # 合并所有chunk的频率计数器 (关键优化：避免存储原始token)
+    total_counter = Counter()
+    for chunk_counter in results:
+        total_counter.update(chunk_counter)
+    
     # 将预处理结果转换为字节序列和频率
     bytes_with_freq = []
-    for token, freq in pretokens_count.items():
-        # 特殊标记保持原样
-        if token in special_tokens:
+    for token, freq in total_counter.items():
+        if token in filtered_special_tokens:
             bytes_with_freq.append(([token.encode("utf-8")], freq))
         else:
-            # 普通token转换为字节序列
             bytes_with_freq.append((token_to_byte_sequence(token.encode("utf-8")), freq))
 
     # 开始BPE训练
-    start_index = len(special_tokens) + 256
+    start_index = len(filtered_special_tokens) + 256
     remaining_vocab_size = vocab_size - start_index
     new_token = []
     
