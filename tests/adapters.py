@@ -17,7 +17,7 @@ from cs336_basics.RMSNorm import RMSNorm
 from cs336_basics.SwiGLU import SwiGLU
 from cs336_basics.RoPE import RoPE
 from cs336_basics.Attention import softmax, scaled_dot_product_attention, multihead_self_attention
-from cs336_basics.transformer import transformer_block
+from cs336_basics.transformer import transformer_block, TransformerLM
 
 
 def run_linear(
@@ -314,7 +314,7 @@ def run_transformer_block(
 
 
     batch_size, seq_len, _ = in_features.shape
-    token_positions = torch.arange(seq_len, device=in_features.device).unsqueeze(0).expand(batch_size, -1)
+    token_positions = torch.arange(seq_len, device=in_features.device).unsqueeze(0).expand(batch_size, seq_len)
     return model(in_features, token_positions)
 
 
@@ -397,7 +397,42 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    device = None
+    in_indices = in_indices.to(device)
+    
+    # Create model
+    model = TransformerLM(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        vocab_size=vocab_size,
+        context_length=context_length,
+        num_layers=num_layers,
+        theta=rope_theta,
+        device=device,
+    )
+
+    # Load token embedding and output layer weights
+    model.token_emb.weights.data = weights["token_embeddings.weight"].to(device)
+    model.norm.weights.data = weights["ln_final.weight"].to(device)
+    model.lm_head.weight.data = weights["lm_head.weight"].to(device)
+
+    # Load transformer block weights
+    for layer_idx in range(num_layers):
+        block = model.layers[layer_idx]
+        prefix = f"layers.{layer_idx}."
+        block.attn.q_proj.weights.data = weights[prefix + "attn.q_proj.weight"].to(device)
+        block.attn.k_proj.weights.data = weights[prefix + "attn.k_proj.weight"].to(device)
+        block.attn.v_proj.weights.data = weights[prefix + "attn.v_proj.weight"].to(device)
+        block.attn.o_proj.weights.data = weights[prefix + "attn.output_proj.weight"].to(device)
+        block.ln1.weights.data = weights[prefix + "ln1.weight"].to(device)
+        block.ln2.weights.data = weights[prefix + "ln2.weight"].to(device)
+        block.ffn.W1.weights.data = weights[prefix + "ffn.w1.weight"].to(device)
+        block.ffn.W2.weights.data = weights[prefix + "ffn.w2.weight"].to(device)
+        block.ffn.W3.weights.data = weights[prefix + "ffn.w3.weight"].to(device)
+
+    # Run model forward pass
+    return model(in_indices)
 
 
 def run_rmsnorm(
