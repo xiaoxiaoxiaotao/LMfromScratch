@@ -1,8 +1,8 @@
 import torch
 from einops import einsum
 from torch import nn
-from cs336_basics.Linear import Linear
-from cs336_basics.RoPE import RoPE
+from .Linear import Linear
+from .RoPE import RoPE
 
 def softmax(x , dim: int):
     max_x = torch.max(x, dim, keepdim=True)[0]

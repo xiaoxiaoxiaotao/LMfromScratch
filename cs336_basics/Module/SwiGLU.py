@@ -1,6 +1,6 @@
 from torch import nn
 import torch
-from cs336_basics.Linear import Linear
+from .Linear import Linear
 
 def silu(x):
     return x * torch.sigmoid(x)
