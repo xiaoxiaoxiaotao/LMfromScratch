@@ -1,6 +1,6 @@
 import math
 
-def learning_rate_schedule(t, alpha_max, alpha_min, T_w, T_c):
+def cosine_annealing_learning_rate(t, alpha_max, alpha_min, T_w, T_c):
 
     if t < T_w:
         # Warm-up phase
