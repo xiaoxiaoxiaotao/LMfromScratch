@@ -20,7 +20,7 @@ from cs336_basics.Module.Attention import softmax, scaled_dot_product_attention,
 from cs336_basics.Module.transformer import transformer_block, TransformerLM
 from cs336_basics.utils.loss import cross_entropy
 from cs336_basics.optim.Optimizer import AdamW
-from cs336_basics.utils.learning_rate_schem import cosine_annealing_learning_rate
+from cs336_basics.utils.learning_rate_scheme import cosine_annealing_learning_rate
 
 def run_linear(
     d_in: int,
