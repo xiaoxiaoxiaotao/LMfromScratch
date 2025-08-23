@@ -18,6 +18,7 @@ from cs336_basics.Module.SwiGLU import SwiGLU
 from cs336_basics.Module.RoPE import RoPE
 from cs336_basics.Module.Attention import softmax, scaled_dot_product_attention, multihead_self_attention
 from cs336_basics.Module.transformer import transformer_block, TransformerLM
+from cs336_basics.utils.loss import cross_entropy
 
 
 def run_linear(
@@ -527,7 +528,8 @@ def run_cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: 
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    result = cross_entropy(inputs, targets)
+    return result
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
