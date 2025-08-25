@@ -22,6 +22,7 @@ from cs336_basics.utils.loss import cross_entropy
 from cs336_basics.optim.Optimizer import AdamW
 from cs336_basics.utils.learning_rate_scheme import cosine_annealing_learning_rate
 from cs336_basics.utils.gradient_clipping import gradient_clipping
+from cs336_basics.utils.data_loader import get_batch
 
 def run_linear(
     d_in: int,
@@ -498,7 +499,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    return get_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
