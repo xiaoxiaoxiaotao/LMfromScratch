@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple, Optional, Iterable, Iterator
 import regex as re
+import json
 
 class BPETokenizer:
     def __init__(self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: Optional[List[str]] = None):
@@ -79,11 +80,9 @@ class BPETokenizer:
             for line in f:
                 if line.startswith("#") or not line.strip():
                     continue
-                token1, token2 = line.strip().split()
-                # 将字符串转换回字节 (通过latin1编码)
-                byte1 = token1.encode('latin1')
-                byte2 = token2.encode('latin1')
-                merges.append((byte1, byte2))
+                parts = line.strip().split()
+                if len(parts) == 2:
+                    merges.append((bytes(parts[0], "latin1"), bytes(parts[1], "latin1")))
         
         return cls(vocab, merges, special_tokens)
 

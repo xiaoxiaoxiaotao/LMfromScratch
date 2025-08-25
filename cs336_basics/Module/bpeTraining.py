@@ -149,7 +149,7 @@ def determine_optimal_chunking(file_path: str, special_token: bytes, num_workers
     memory_based_chunks = max(4, int(safe_memory // estimated_chunk_memory))
     
     # 计算基于文件大小的分块数
-    size_based_chunks = max(4, file_size // (5 * 1024 * 1024))  # 目标5MB/chunk
+    size_based_chunks = max(4, file_size // (20 * 1024 * 1024))  # 目标5MB/chunk
     
     # 综合考虑内存和文件大小
     num_chunks = min(memory_based_chunks, size_based_chunks, 1000)  # 限制最大分块数
