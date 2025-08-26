@@ -22,27 +22,30 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.8.3,<0.9.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.uv.build-backend]
-module-name = "cs336_basics"
-module-root = ""
+# 指定包结构：自动发现 src/ 或根目录下的模块
+[tool.setuptools.packages.find]
+where = ["."]  # 包在根目录下，如 cs336_basics/
+# 如果你的代码在 src/cs336_basics/ 下，请改为: where = ["src"]
+# namespaces = false
 
-[tool.uv]
-package = true
-python-preference = "managed"
+# 可选：如果你有数据文件需要包含
+# [tool.setuptools.package-data]
+# "cs336_basics" = ["data/*.txt", "configs/*.yaml"]
 
+# 测试配置保持不变
 [tool.pytest.ini_options]
 log_cli = true
 log_cli_level = "WARNING"
 addopts = "-s"
 
+# 代码格式与 lint 工具
 [tool.ruff]
 line-length = 120
 
 [tool.ruff.lint.extend-per-file-ignores]
-# Also ignore `E402` in all `__init__.py` files.
 "__init__.py" = ["E402", "F401", "F403", "E501"]
 
 [tool.ruff.lint]

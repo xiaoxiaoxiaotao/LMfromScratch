@@ -48,7 +48,7 @@ if __name__ == "__main__":
     valid_data = np.load(args.valid_input, mmap_mode='r')
 
     batch_size = 32
-    num_epochs = 1
+    num_epochs = 3
     vocab_size = 10000
     context_len = 128
     d_model = 128
@@ -57,8 +57,8 @@ if __name__ == "__main__":
     num_layers = 6
     rope_theta = 10000
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    eval_iters = 20      # 验证时跑多少个 batch 取平均
-    eval_interval = 1
+    eval_iters = 20
+    eval_interval = 100
 
     steps_per_epoch = len(train_data) // (batch_size * context_len)
     
