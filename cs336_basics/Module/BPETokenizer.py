@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Optional, Iterable, Iterator
 import regex as re
 import json
+from tqdm import tqdm
 
 class BPETokenizer:
     def __init__(self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: Optional[List[str]] = None):
@@ -185,7 +186,7 @@ class BPETokenizer:
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         """
-        给定字符串可迭代对象，返回一个懒惰生成token ID的生成器
+        给定字符串可迭代对象，返回一个懒惰生成token ID的生成器，并显示进度
         
         Args:
             iterable: 字符串可迭代对象（如文件句柄）
@@ -193,7 +194,7 @@ class BPETokenizer:
         Returns:
             生成token ID的迭代器
         """
-        for chunk in iterable:
+        for chunk in tqdm(iterable, desc="Encoding", unit="chunk"):
             for token_id in self.encode(chunk):
                 yield token_id
 

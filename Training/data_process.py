@@ -9,6 +9,8 @@ parser.add_argument("--vocab_filepath", type=str, default = "./output/tokenizer/
                     help="Path to the vocab file")
 parser.add_argument("--merges_filepath", type=str,default = "./output/tokenizer/merges.txt", 
                     help="Path to the merges file")
+parser.add_argument("--output_dir", type=str, default = './output/dataset/TinyStories_train_tokens.npy', 
+                    help="Path to the save file")
 
 
 args = parser.parse_args()
@@ -20,7 +22,7 @@ tokenizer = BPETokenizer.from_files(
     )
 
 with open(args.input, "r", encoding="utf-8") as file:
-    text = file.read()
-    token_ids = list(tokenizer.encode_iterable(text))  # 转成 list
+    token_ids = list(tokenizer.encode_iterable(file))  # 每行是一个 chunk
     data = np.array(token_ids, dtype='uint16')
-    np.save('./output/dataset/TinyStories_train_tokens.npy', data)
+    os.makedirs(args.output_dir, exist_ok=True)
+    np.save(args.output_dir, data)
