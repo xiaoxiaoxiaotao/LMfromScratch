@@ -32,9 +32,9 @@ def estimate_loss(
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
-            x, y = get_batch(split, train_data, val_data, batch_size, block_size, device)
+            x, y = get_batch(valid_data, batch_size, context_len, device)
             logits = model(x)
-            loss = cross_entropy(logits.view(-1), y.view(-1))
+            loss = cross_entropy(logits, y)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
@@ -57,7 +57,8 @@ if __name__ == "__main__":
     num_layers = 6
     rope_theta = 10000
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    eval_iters = 200      # 验证时跑多少个 batch 取平均
+    eval_iters = 20      # 验证时跑多少个 batch 取平均
+    eval_interval = 1
 
     steps_per_epoch = len(train_data) // (batch_size * context_len)
     
@@ -71,7 +72,7 @@ if __name__ == "__main__":
         num_layers=num_layers,
         theta=rope_theta,
         device=device,
-    )
+    ).to(device)
 
     # initialize the optimizer
     optimizer = AdamW(model.parameters())
@@ -97,7 +98,7 @@ if __name__ == "__main__":
 
             if global_step % eval_interval == 0:
                 losses = estimate_loss(
-                    model, train_data, valid_data, batch_size, contex_len, eval_iters, device
+                    model, train_data, valid_data, batch_size, context_len, eval_iters, device
                 )
                 print(f"Step {global_step}: train_loss = {losses['train']:.4f}, val_loss = {losses['val']:.4f}")
         

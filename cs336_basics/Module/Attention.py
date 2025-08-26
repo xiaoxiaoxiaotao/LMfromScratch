@@ -60,7 +60,7 @@ class multihead_self_attention(nn.Module):
 
         mask = None
         if causal:
-            mask = _causal_mask(seq_len)
+            mask = _causal_mask(seq_len).to(Q.device)
         
         if  token_positions is not None:
             Q = self.rope(Q, token_positions)
