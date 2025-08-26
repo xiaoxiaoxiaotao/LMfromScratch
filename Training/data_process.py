@@ -1,6 +1,8 @@
 from cs336_basics.Module.BPETokenizer import BPETokenizer
 import numpy as np
 import argparse
+import os
+import json
 
 parser = argparse.ArgumentParser(description="Encode the data with BPE tokenizer")
 parser.add_argument("--input", type=str, required=True, 
@@ -24,5 +26,4 @@ tokenizer = BPETokenizer.from_files(
 with open(args.input, "r", encoding="utf-8") as file:
     token_ids = list(tokenizer.encode_iterable(file))  # 每行是一个 chunk
     data = np.array(token_ids, dtype='uint16')
-    os.makedirs(args.output_dir, exist_ok=True)
     np.save(args.output_dir, data)
