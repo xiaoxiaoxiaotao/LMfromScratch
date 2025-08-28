@@ -2,13 +2,12 @@ import numpy as np
 import argparse
 import torch
 
-# 导入你自定义的模块
 from cs336_basics.utils.data_loader import get_batch
 from cs336_basics.Module.transformer import TransformerLM
-from cs336_basics.optim.Optimizer import AdamW  # 你自定义的 AdamW
+from cs336_basics.optim.Optimizer import AdamW 
 from cs336_basics.utils.loss import cross_entropy
 from cs336_basics.utils.learning_rate_scheme import cosine_annealing_learning_rate
-from cs336_basics.utils.checkpoint import save_checkpoint, load_checkpoint  # 假设已导入
+from cs336_basics.utils.checkpoint import save_checkpoint, load_checkpoint  
 from cs336_basics.utils.gradient_clipping import gradient_clipping
 
 
@@ -124,24 +123,12 @@ def main():
         for step in range(steps_per_epoch):
             global_step += 1
             num_batches += 1
-
-            # 清除梯度
             optimizer.zero_grad()
-
-            # 获取训练 batch
             x, label = get_batch(train_data, batch_size, context_len, device)
-
-            # 前向传播
             logits = model(x)
             loss = cross_entropy(logits, label)
-
-            # 反向传播
             loss.backward()
-
-            # 梯度裁剪（使用你写的函数）
             gradient_clipping(model.parameters(), M=1.0)
-
-            # 动态学习率：余弦退火 + warm-up
             lr = cosine_annealing_learning_rate(
                 t=global_step,
                 alpha_max=alpha_max,
@@ -154,7 +141,6 @@ def main():
 
             # 更新参数
             optimizer.step()
-
             epoch_loss += loss.item()
 
             # 定期评估
