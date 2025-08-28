@@ -20,6 +20,19 @@ parser.add_argument("--checkpoint_path", type=str, default="/home/mw/",
                     help="Directory to save model checkpoints")
 parser.add_argument("--resume", type=str, default=None,
                     help="Path to checkpoint to resume training from (optional)")
+parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
+parser.add_argument('--num_epochs', type=int, default=3, help='Number of training epochs')
+parser.add_argument('--vocab_size', type=int, default=10000, help='Vocabulary size')
+parser.add_argument('--context_len', type=int, default=128, help='Context length (sequence length)')
+parser.add_argument('--d_model', type=int, default=128, help='Model dimension')
+parser.add_argument('--num_heads', type=int, default=8, help='Number of attention heads')
+parser.add_argument('--d_ff', type=int, default=4 * 128, help='Feed-forward dimension (computed as 4 * d_model)')
+parser.add_argument('--num_layers', type=int, default=6, help='Number of transformer layers')
+parser.add_argument('--rope_theta', type=float, default=10000, help='RoPE theta value for rotary embeddings')
+parser.add_argument('--device', type=str, default="cuda" if torch.cuda.is_available() else "cpu",
+                    help='Device to use: "cuda" or "cpu"')
+parser.add_argument('--eval_iters', type=int, default=20, help='Number of iterations for evaluation')
+parser.add_argument('--eval_interval', type=int, default=100, help='Interval for evaluation (every N steps)')
 
 
 @torch.no_grad()
@@ -49,6 +62,21 @@ def estimate_loss(
     model.train()
     return out
 
+def print_model_info(model, context_len, vocab_size):
+    """
+    打印模型参数数量和预估的FLOPS（前向传播）
+
+    Args:
+        model: TransformerLM 模型实例
+        context_len: 输入序列长度
+        vocab_size: 词表大小
+    """
+    # 统计参数
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"\n🔍 Model Parameter Count:")
+    print(f"  Total Parameters: {total_params:,}")
+    print(f"  Trainable Parameters: {trainable_params:,}")
 
 def main():
     args = parser.parse_args()
@@ -61,18 +89,18 @@ def main():
     print(f"Valid data size: {len(valid_data)} tokens")
 
     # Hyperparameters
-    batch_size = 32
-    num_epochs = 3
-    vocab_size = 10000
-    context_len = 128
-    d_model = 128
-    num_heads = 8
-    d_ff = 4 * d_model
-    num_layers = 6
-    rope_theta = 10000
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    eval_iters = 20
-    eval_interval = 100
+    batch_size = args.batch_size
+    num_epochs = args.num_epochs
+    vocab_size = args.vocab_size
+    context_len = args.context_len
+    d_model = args.d_model
+    num_heads = args.num_heads
+    d_ff = args.d_ff
+    num_layers = args.num_layers
+    rope_theta = args.rope_theta
+    device = args.device
+    eval_iters = args.eval_iters
+    eval_interval = args.eval_interval
 
     # 计算每轮的步数
     steps_per_epoch = len(train_data) // (batch_size * context_len)
@@ -113,6 +141,8 @@ def main():
 
     print(f"Starting training for {num_epochs} epochs, total steps: {total_steps}")
     print(f"Warm-up: {T_w} steps, Peak LR: {alpha_max}, Min LR: {alpha_min}")
+
+    print_model_info(model, context_len, vocab_size)
 
     for epoch in range(start_epoch, num_epochs):
         print(f"\nEpoch {epoch + 1}/{num_epochs}")
